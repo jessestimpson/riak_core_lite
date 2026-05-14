@@ -397,10 +397,14 @@ send_command_after(Time, Request) ->
 
 reply({fsm, ignore_ref, From}, Reply) ->
     riak_core_send_msg:send_event_unreliable(From, Reply);
+reply({fsm, undefined, From}, Reply) ->
+    riak_core_send_msg:send_event_unreliable(From, Reply);
 reply({fsm, Ref, From}, Reply) ->
     riak_core_send_msg:send_event_unreliable(From,
                                              {Ref, Reply});
 reply({server, ignore_ref, From}, Reply) ->
+    riak_core_send_msg:reply_unreliable(From, Reply);
+reply({server, undefined, From}, Reply) ->
     riak_core_send_msg:reply_unreliable(From, Reply);
 reply({server, Ref, From}, Reply) ->
     riak_core_send_msg:reply_unreliable(From, {Ref, Reply});
