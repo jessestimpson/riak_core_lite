@@ -48,8 +48,24 @@ gen_statem_conversion_test_() ->
       {"Bug 3: unregistered sends call but handler expects cast",
        fun bug3_unregistered_call_vs_cast/0},
       {"Bug 4: send_all_proxy_req hangs caller",
-       fun bug4_send_all_proxy_req/0}
+       fun bug4_send_all_proxy_req/0},
+      {"Bug 5: send_command_after crashes vnode",
+       fun bug5_send_command_after/0}
      ]}.
+
+%% send_command_after uses erlang:start_timer which wraps the
+%% message in {timeout, Ref, Msg}. This arrives as info, not as the
+%% intended cast. The deferred command is never executed.
+bug5_send_command_after() ->
+    Pid = start_test_vnode(),
+    {active, _} = riak_core_vnode:current_state(Pid),
+    %% Trigger send_command_after inside the vnode via a cast command
+    riak_core_vnode:send_command(Pid, {send_deferred, 50}),
+    timer:sleep(300),
+    %% Check that the deferred command was actually executed via handle_command
+    {active, State} = riak_core_vnode:current_state(Pid),
+    ModState = element(4, State),
+    ?assertEqual(received, element(4, ModState)).
 
 %% send_all_proxy_req uses gen_statem:call but gen_statem From
 %% is never replied to. Old code used send_all_state_event (async).
