@@ -342,9 +342,9 @@ send_all_proxy_req(VNode, Req) ->
 -spec send_command_after(integer(),
                          term()) -> reference().
 send_command_after(Time, Request) ->
-    erlang:start_timer(Time,
-                       self(),
-                       {'$gen_cast', #riak_vnode_req_v1{request = Request}}).
+    erlang:send_after(Time,
+                      self(),
+                      {'$gen_cast', #riak_vnode_req_v1{request = Request}}).
 
 
 
