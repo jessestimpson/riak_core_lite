@@ -50,8 +50,31 @@ gen_statem_conversion_test_() ->
       {"Bug 4: send_all_proxy_req hangs caller",
        fun bug4_send_all_proxy_req/0},
       {"Bug 5: send_command_after crashes vnode",
-       fun bug5_send_command_after/0}
+       fun bug5_send_command_after/0},
+      {"Bug 6: manager event timer message format",
+       fun bug6_manager_event_timer/0}
      ]}.
+
+%% start_manager_event_timer uses erlang:start_timer which wraps
+%% the message. The {send_manager_event, Event} cast is never delivered.
+bug6_manager_event_timer() ->
+    %% start_manager_event_timer must use erlang:send_after (not start_timer)
+    %% so that '$gen_cast' arrives directly and gen_statem routes as cast.
+    %% erlang:start_timer wraps in {timeout, Ref, Msg} which arrives as info.
+    SrcFile = filename:join(code:lib_dir(riak_core, src), "riak_core_vnode.erl"),
+    {ok, Bin} = file:read_file(SrcFile),
+    Src = binary_to_list(Bin),
+    Lines = string:split(Src, "\n", all),
+    %% Find lines in start_manager_event_timer that use a timer function
+    InFun = lists:dropwhile(
+        fun(L) -> string:find(L, "start_manager_event_timer(Event") =:= nomatch end, Lines),
+    FunLines = lists:takewhile(
+        fun(L) -> string:find(L, "stop_manager_event_timer") =:= nomatch end,
+        tl(InFun)),
+    UsesStartTimer = lists:any(fun(L) ->
+        string:find(L, "start_timer") =/= nomatch
+    end, FunLines),
+    ?assertNot(UsesStartTimer).
 
 %% send_command_after uses erlang:start_timer which wraps the
 %% message in {timeout, Ref, Msg}. This arrives as info, not as the
