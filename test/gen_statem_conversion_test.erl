@@ -46,8 +46,28 @@ gen_statem_conversion_test_() ->
       {"Bug 2: $gen_event instead of $gen_cast",
        fun bug2_gen_event_format/0},
       {"Bug 3: unregistered sends call but handler expects cast",
-       fun bug3_unregistered_call_vs_cast/0}
+       fun bug3_unregistered_call_vs_cast/0},
+      {"Bug 4: send_all_proxy_req hangs caller",
+       fun bug4_send_all_proxy_req/0}
      ]}.
+
+%% send_all_proxy_req uses gen_statem:call but gen_statem From
+%% is never replied to. Old code used send_all_state_event (async).
+bug4_send_all_proxy_req() ->
+    Pid = start_test_vnode(),
+    {active, _} = riak_core_vnode:current_state(Pid),
+    Req = #riak_vnode_req_v1{sender = ignore, request = ping},
+    %% Bug: send_all_proxy_req uses gen_statem:call which blocks the
+    %% caller until timeout (vnode replies via Sender, not gen_statem From).
+    %% Test: send_all_proxy_req should return promptly (cast semantics).
+    Parent = self(),
+    Ref = make_ref(),
+    spawn(fun() ->
+        catch riak_core_vnode:send_all_proxy_req(Pid, Req),
+        Parent ! {Ref, returned}
+    end),
+    Got = receive {Ref, returned} -> returned after 2000 -> hung end,
+    ?assertEqual(returned, Got).
 
 %% unregistered/1 sends {call,From} but handler expects cast.
 bug3_unregistered_call_vs_cast() ->
