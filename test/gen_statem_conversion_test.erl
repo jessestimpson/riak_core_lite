@@ -54,8 +54,20 @@ gen_statem_conversion_test_() ->
       {"Bug 6: manager event timer message format",
        fun bug6_manager_event_timer/0},
       {"Bug 7: wait_for_init missing infinity timeout",
-       fun bug7_wait_for_init_timeout/0}
+       fun bug7_wait_for_init_timeout/0},
+      {"Bug 8: _C wildcard matches call without replying",
+       fun bug8_wildcard_event_type/0}
      ]}.
+
+%% active(_C, #riak_vnode_req_v1{...}, State) matches {call, From}
+%% but replies via Sender, not From. Caller hangs.
+bug8_wildcard_event_type() ->
+    Pid = start_test_vnode(),
+    {active, _} = riak_core_vnode:current_state(Pid),
+    Sender = {server, ignore_ref, {self(), make_ref()}},
+    Req = #riak_vnode_req_v1{sender = Sender, request = ping},
+    Result = (catch gen_statem:call(Pid, Req, 2000)),
+    ?assertNot(is_tuple(Result) andalso element(1, Result) == 'EXIT').
 
 %% wait_for_init uses gen_statem:call/2 (5s default) not infinity.
 bug7_wait_for_init_timeout() ->
