@@ -1399,11 +1399,9 @@ start_manager_event_timer(Event,
                                         Event),
     stop_manager_event_timer(State),
     %TODO correct way to start an event after x?
-    T2 = erlang:start_timer(30000,
-                            self(),
-                            {'$gen_cast', {send_manager_event, Event}}),
-    %T2 = gen_statem:send_event_after(30000,
-    %                 {send_manager_event, Event}),
+    T2 = erlang:send_after(30000,
+                           self(),
+                           {'$gen_cast', {send_manager_event, Event}}),
     State#state{manager_event_timer = T2}.
 
 stop_manager_event_timer(#state{manager_event_timer =
