@@ -762,7 +762,7 @@ active(info, {'DOWN', _Ref, process, _Pid, normal},
     %% need them in other states
     continue(State);
 %%
-active({info, _F}, Info,
+active(info, Info,
        State = #state{mod = Module, modstate = {deleted, _},
                       index = Index}) ->
     logger:info("~p ~p ignored handle_info ~p - vnode "
@@ -770,7 +770,7 @@ active({info, _F}, Info,
                 [Index, Module, Info]),
     continue(State);
 %%
-active({info, _F}, {'EXIT', Pid, Reason},
+active(info, {'EXIT', Pid, Reason},
        State = #state{mod = Module, modstate = ModState}) ->
     %% A linked processes has died so use the
     %% handle_exit callback to allow the vnode
@@ -790,7 +790,7 @@ active({info, _F}, {'EXIT', Pid, Reason},
         _ErrorType:undef -> {stop, linked_process_crash, State}
     end;
 %%
-active({info, _F}, Info,
+active(info, Info,
        State = #state{mod = Module, modstate = ModState}) ->
     case erlang:function_exported(Module, handle_info, 2) of
         true ->
