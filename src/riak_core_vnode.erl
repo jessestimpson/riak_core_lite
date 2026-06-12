@@ -283,7 +283,7 @@ resize_transfer_complete(VNode, NotSentAcc) ->
 
 %% #2.7 - riak_core_vnode_proxy - handle_cast
 unregistered(VNode) ->
-    gen_statem:call(VNode, unregistered).
+    gen_statem:cast(VNode, unregistered).
 
 
 %% #3.1 call
