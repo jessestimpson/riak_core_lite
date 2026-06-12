@@ -44,5 +44,20 @@ gen_statem_conversion_test_() ->
      [{"Bug 1: {info, _F} is not valid gen_statem event type",
        fun bug1_info_event_type/0},
       {"Bug 2: $gen_event instead of $gen_cast",
-       fun bug2_gen_event_format/0}
+       fun bug2_gen_event_format/0},
+      {"Bug 3: unregistered sends call but handler expects cast",
+       fun bug3_unregistered_call_vs_cast/0}
      ]}.
+
+%% unregistered/1 sends {call,From} but handler expects cast.
+bug3_unregistered_call_vs_cast() ->
+    Pid = start_test_vnode(),
+    {active, _} = riak_core_vnode:current_state(Pid),
+    MonRef = monitor(process, Pid),
+    ok = riak_core_vnode:unregistered(Pid),
+    Result = receive
+        {'DOWN', MonRef, process, Pid, _} -> stopped
+    after 2000 -> still_alive
+    end,
+    demonitor(MonRef, [flush]),
+    ?assertEqual(stopped, Result).
