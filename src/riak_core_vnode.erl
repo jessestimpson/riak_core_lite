@@ -332,7 +332,7 @@ cancel_handoff(VNode) ->
 
 %% #4.7 - riak_core_vnode_master - handle_call
 send_all_proxy_req(VNode, Req) ->
-    gen_statem:call(VNode, Req).
+    gen_statem:cast(VNode, Req).
 
 
 
