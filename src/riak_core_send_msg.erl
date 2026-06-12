@@ -38,7 +38,7 @@ send_event_unreliable({via, _Module, _Name} = ViaTo,
                       Event) ->
     erlang:error({unimplemented_send, ViaTo, Event});
 send_event_unreliable(Name, Event) ->
-    bang_unreliable(Name, {'$gen_event', Event}),
+    bang_unreliable(Name, {'$gen_cast', Event}),
     ok.
 
 bang_unreliable(Dest, Msg) ->
