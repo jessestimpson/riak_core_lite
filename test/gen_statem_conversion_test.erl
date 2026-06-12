@@ -56,8 +56,23 @@ gen_statem_conversion_test_() ->
       {"Bug 7: wait_for_init missing infinity timeout",
        fun bug7_wait_for_init_timeout/0},
       {"Bug 8: _C wildcard matches call without replying",
-       fun bug8_wildcard_event_type/0}
+       fun bug8_wildcard_event_type/0},
+      {"Bug 10: trigger_delete missing deleted guard",
+       fun bug10_trigger_delete_in_deleted_state/0}
      ]}.
+
+%% trigger_delete missing {deleted, _} guard.
+%% Calls Module:delete(ModState) even when modstate is already {deleted, _}.
+bug10_trigger_delete_in_deleted_state() ->
+    Pid = start_test_vnode(),
+    {active, _} = riak_core_vnode:current_state(Pid),
+    sys:replace_state(Pid, fun({active, State}) ->
+        {active, setelement(4, State, {deleted, some_state})}
+    end),
+    riak_core_vnode:trigger_delete(Pid),
+    timer:sleep(100),
+    ?assert(is_process_alive(Pid)).
+
 
 %% active(_C, #riak_vnode_req_v1{...}, State) matches {call, From}
 %% but replies via Sender, not From. Caller hangs.
