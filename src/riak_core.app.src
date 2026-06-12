@@ -1,7 +1,7 @@
 {application,
  riak_core,
  [{description, "Riak Core Lite"},
-  {vsn, "0.10.5"},
+  {vsn, "0.11.0"},
   {applications,
    [kernel, stdlib, crypto, os_mon, poolboy]},
   {mod, {riak_core_app, []}},
@@ -28,7 +28,7 @@
     {health_checks, []}]},
   {pkg_name, "riak_core_lite"},
   {maintainers, ["riak_core_lite", "Albert Schimpf"]},
-  {licenses, ["Apache"]},
+  {licenses, ["Apache-2.0"]},
   {links,
    [{"Github",
      "https://github.com/riak-core-lite/riak_core_lite"}]}]}
