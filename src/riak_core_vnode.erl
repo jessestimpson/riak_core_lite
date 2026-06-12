@@ -370,7 +370,16 @@ reply({server, undefined, From}, Reply) ->
     riak_core_send_msg:reply_unreliable(From, Reply);
 reply({server, Ref, From}, Reply) ->
     riak_core_send_msg:reply_unreliable(From, {Ref, Reply});
-reply(ignore, _Reply) -> ok.
+reply(ignore, _Reply) -> ok;
+reply(Sender, Reply) ->
+    %% Unsupported sender forms (e.g. {raw, _, _}, removed in 0.10.4)
+    %% must not crash the vnode: a function_clause here kills the vnode
+    %% process and destroys its in-memory state. Drop the reply and let
+    %% the requestor time out instead.
+    logger:warning("Dropped vnode reply ~p to unsupported "
+                   "sender form ~p",
+                   [Reply, Sender]),
+    ok.
 
 %% ========================
 %% ========
@@ -466,7 +475,12 @@ started({call, From}, current_state, State) ->
     {next_state,
      started,
      State,
-     {reply, From, {started, State}}}.
+     {reply, From, {started, State}}};
+%% Any other event arriving before init must not crash the vnode with
+%% a function_clause; postpone it until the vnode is active. The
+%% arriving event cancels the pending init timeout, so re-arm it.
+started(_EventType, _Event, _State) ->
+    {keep_state_and_data, [postpone, {timeout, 0, ok}]}.
 
 %% active
 %% ========
@@ -819,7 +833,17 @@ active({_C, From}, _MSG, State) ->
     {next_state,
      active,
      State,
-     [State#state.inactivity_timeout, {reply, From, ok}]}.
+     [State#state.inactivity_timeout, {reply, From, ok}]};
+%% Unknown casts (e.g. from send_an_event/2 misuse or a node running
+%% different code) must not crash the vnode with a function_clause:
+%% that kills the vnode process and destroys its in-memory state.
+%% Note the clause above only matches 2-tuple event types like
+%% {call, From}, not the atom event types cast and info.
+active(cast, Event,
+       State = #state{mod = Module, index = Index}) ->
+    logger:warning("~p ~p dropped unknown vnode cast ~p",
+                   [Index, Module, Event]),
+    continue(State).
 
 %% ========================
 %% ========

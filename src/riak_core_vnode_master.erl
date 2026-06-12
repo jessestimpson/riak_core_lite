@@ -88,15 +88,42 @@ command_unreliable(Preflist, Msg, VMaster) ->
     command2(Preflist, Msg, ignore, VMaster, unreliable).
 
 command(PrefListOrCmd, Msg, Sender, VMaster) ->
-    command2(PrefListOrCmd, Msg, Sender, VMaster, normal).
+    command2(PrefListOrCmd,
+             Msg,
+             check_sender(Sender),
+             VMaster,
+             normal).
 
 command_unreliable(PrefListOrCmd, Msg, Sender,
                    VMaster) ->
     command2(PrefListOrCmd,
              Msg,
-             Sender,
+             check_sender(Sender),
              VMaster,
              unreliable).
+
+%% Reject sender forms the vnode cannot reply to (see
+%% riak_core_vnode:reply/2) in the caller's process, instead of letting
+%% them travel into the vnode and crash it there. Vnode access is
+%% restricted to fsm and server senders since 0.10.4; notably the
+%% {raw, Ref, Pid} form of pre-0.10.4 riak_core is not supported.
+check_sender(Sender) ->
+    case valid_sender(Sender) of
+        true -> Sender;
+        false -> erlang:error({invalid_sender, Sender})
+    end.
+
+valid_sender(ignore) -> true;
+valid_sender({fsm, _Ref, From})
+    when is_pid(From) orelse is_atom(From) ->
+    true;
+valid_sender({server, _Ref, {Pid, _Tag}})
+    when is_pid(Pid) ->
+    true;
+valid_sender({server, _Ref, From})
+    when is_pid(From) orelse is_atom(From) ->
+    true;
+valid_sender(_) -> false.
 
 %% Send the command to the preflist given with responses going to Sender
 command2([], _Msg, _Sender, _VMaster, _How) -> ok;
@@ -132,6 +159,7 @@ command2(DestTuple, Msg, Sender, VMaster, How)
 coverage(Msg, CoverageVNodes, Keyspaces,
          {Type, Ref, From}, VMaster)
     when is_list(CoverageVNodes) ->
+    _ = check_sender({Type, Ref, From}),
     [proxy_cast({VMaster, Node},
                 make_coverage_request(Msg,
                                       Keyspaces,
@@ -141,14 +169,17 @@ coverage(Msg, CoverageVNodes, Keyspaces,
 coverage(Msg, {Index, Node}, Keyspaces, Sender,
          VMaster) ->
     proxy_cast({VMaster, Node},
-               make_coverage_request(Msg, Keyspaces, Sender, Index)).
+               make_coverage_request(Msg,
+                                     Keyspaces,
+                                     check_sender(Sender),
+                                     Index)).
 
 %% Send the command to an individual Index/Node combination, but also
 %% return the pid for the vnode handling the request, as `{ok, VnodePid}'.
 command_return_vnode({Index, Node}, Msg, Sender,
                      VMaster) ->
-    Req = #riak_vnode_req_v1{request = Msg, sender = Sender,
-                             index = Index},
+    Req = #riak_vnode_req_v1{request = Msg,
+                             sender = check_sender(Sender), index = Index},
     Mod = vmaster_to_vmod(VMaster),
     riak_core_vnode_proxy:command_return_vnode({Mod,
                                                 Index,
