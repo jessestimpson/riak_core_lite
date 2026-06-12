@@ -515,7 +515,10 @@ active(cast, {trigger_handoff, TargetNode}, State) ->
     active(cast,
            {trigger_handoff, State#state.index, TargetNode},
            State);
-%% #8
+%% #8 - already deleted, no-op
+active(cast, trigger_delete,
+       State = #state{modstate = {deleted, _}}) ->
+    continue(State);
 active(cast, trigger_delete,
        State = #state{mod = Module, modstate = ModState,
                       index = Idx}) ->
