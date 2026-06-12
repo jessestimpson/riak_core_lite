@@ -245,7 +245,7 @@ start_link(Mod, Index, InitialInactivityTimeout,
 
 %% #1 call - State started
 wait_for_init(Vnode) ->
-    gen_statem:call(Vnode, wait_for_init).
+    gen_statem:call(Vnode, wait_for_init, infinity).
 
 
 %% #2.1 cast
