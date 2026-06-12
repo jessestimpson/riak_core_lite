@@ -52,8 +52,24 @@ gen_statem_conversion_test_() ->
       {"Bug 5: send_command_after crashes vnode",
        fun bug5_send_command_after/0},
       {"Bug 6: manager event timer message format",
-       fun bug6_manager_event_timer/0}
+       fun bug6_manager_event_timer/0},
+      {"Bug 7: wait_for_init missing infinity timeout",
+       fun bug7_wait_for_init_timeout/0}
      ]}.
+
+%% wait_for_init uses gen_statem:call/2 (5s default) not infinity.
+bug7_wait_for_init_timeout() ->
+    SrcFile = filename:join(code:lib_dir(riak_core, src), "riak_core_vnode.erl"),
+    {ok, Bin} = file:read_file(SrcFile),
+    Src = binary_to_list(Bin),
+    Lines = string:split(Src, "\n", all),
+    FunLines = [L || L <- Lines,
+                     string:find(L, "wait_for_init") =/= nomatch,
+                     string:find(L, "gen_statem") =/= nomatch],
+    HasInfinity = lists:any(fun(L) ->
+        string:find(L, "infinity") =/= nomatch
+    end, FunLines),
+    ?assert(HasInfinity).
 
 %% start_manager_event_timer uses erlang:start_timer which wraps
 %% the message. The {send_manager_event, Event} cast is never delivered.
